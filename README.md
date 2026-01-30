@@ -56,7 +56,7 @@ Um pipeline inteligente que ingere alertas, usa **IA Generativa (LLM)** para ana
 Este projeto consolidou conhecimentos em:
 * Arquitetura orientada a eventos.
 * Prompt Engineering para tomadas de decisão técnicas.
-* Manipulação de dados JSON complexos com Python.
+* Manipulação de dados JSON com Python.
 * Infraestrutura como Código (IaC) com Docker.
 
 ---

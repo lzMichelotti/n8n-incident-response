@@ -1,0 +1,5 @@
+# Ignore environment files
+.env
+
+# Ignore Docker volumes
+postgres_data/

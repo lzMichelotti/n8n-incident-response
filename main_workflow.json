@@ -1,0 +1,470 @@
+{
+  "name": "SRE Operation Center",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sre-alert",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        -60
+      ],
+      "id": "00590133-2a2f-4bb3-8a86-e1ce8c191e26",
+      "name": "Webhook",
+      "webhookId": "WEBHOOK_ID_HERE"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM incident_logs ORDER BY created_at DESC LIMIT 5;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -60,
+        -360
+      ],
+      "id": "c3075118-68dd-4f12-b0dc-ce37cfd0fcc5",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "CREDENTIALS_ID_HERE",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/repos/n8n-io/n8n/commits?per_page=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60,
+        -60
+      ],
+      "id": "d0e1d304-79ec-4bcc-9120-8c848a232cf3",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# Node: Code (Simulação/Normalização)\n# Linguagem: Python\n\n# Tenta pegar do body (Webhook POST) ou direto do JSON\nentrada = _input.all()[0].json\ndados = entrada.get('body', entrada)\n\n# Monta o objeto simulado garantindo que os campos existam\n# Isso evita erro de \"KeyError\" no script seguinte\noutput = {\n    \"server_name\": dados.get(\"server\", \"srv-unknown-01\"),\n    \"description\": dados.get(\"description\", \"Alerta de Monitoramento\"),\n    \n    # Converte para Inteiro para a regra > 90 funcionar\n    \"memory_usage\": int(dados.get(\"memory_usage\", 0)), \n    \n    # Passa os outros campos se existirem\n    \"commit\": dados.get(\"commit\", None),\n    \"id\": dados.get(\"id\", None)\n}\n\nreturn [{\"json\": output}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        220
+      ],
+      "id": "f03a810d-a30a-47cc-84b1-793c62c6a89b",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        340,
+        -60
+      ],
+      "id": "1d785bb5-7bd6-4acb-81ce-77abed2b91d1",
+      "name": "Merge",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        740,
+        220
+      ],
+      "id": "8b0ceacc-2612-41b5-bea9-ddf5b85219ec",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "CREDENTIALS_ID_HERE",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\n\n# A CORREÇÃO ESTÁ AQUI: Adicionamos .to_py() no final\n# Isso converte o objeto \"alienígena\" do n8n para um Dicionário Python puro\ndados_do_incidente = _input.all()[0].json.to_py()\n\n# Montamos o texto final\nprompt_final = f\"\"\"\nVocê é um Engenheiro SRE Sênior.\nAnalise os dados técnicos abaixo para encontrar a causa raiz do alerta.\n\nREGRAS DE AÇÃO:\n- Se 'memory_usage' > 90%: Ação é RESTART.\n- Se houver dados em 'commit' (commits recentes): Ação é BUG_REPORT.\n- Se 'id' do banco existir e for recorrente: Ação é ESCALATE.\n\nDADOS TÉCNICOS:\n{json.dumps(dados_do_incidente)}\n\nIMPORTANTE:\nResponda ESTRITAMENTE apenas o JSON abaixo, sem texto antes ou depois:\n{{\n  \"reasoning\": \"Explicação em 1 frase\",\n  \"action\": \"RESTART\" | \"BUG_REPORT\" | \"ESCALATE\",\n  \"confidence\": 90\n}}\n\"\"\"\n\nreturn [{\"json\": {\"meu_prompt\": prompt_final}}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        -60
+      ],
+      "id": "09c1087a-f216-4f77-9d9c-ddc9d3acef91",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.meu_prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        760,
+        -60
+      ],
+      "id": "ae69c452-d49e-4aa0-a477-d2b05e6e5c0d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport re\n\n# Resposta da IA\ntexto_da_ia = _input.all()[0].json.output\n\n# Remove blocos de código markdown (```json ... ```) \ntexto_limpo = re.sub(r\"```json|```\", \"\", texto_da_ia).strip()\n\n# Tenta fazer o parse. Se falhar, cria um fallback para não parar o fluxo\ntry:\n    decisao_limpa = json.loads(texto_limpo)\nexcept:\n    # Se a IA alucinar e não mandar JSON, forçamos um Bug Report para analisar depois\n    decisao_limpa = {\n        \"reasoning\": \"Falha no parse da resposta da IA. Texto original: \" + texto_da_ia,\n        \"action\": \"BUG_REPORT\",\n        \"confidence\": 0\n    }\n# Adiciona o server_name original que veio do input para não perdê-lo\ndecisao_limpa['server_name'] = _input.all()[0].json.get('server_name', 'srv-unknown')\n\nreturn [{\"json\": decisao_limpa}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -60
+      ],
+      "id": "005a71e4-455e-4fda-b801-4242010ca55d",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "rightValue": "RESTART",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6c8ce3e2-4b6d-40a5-8e89-6c9c29c69ce0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rota Restart"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ce88e050-7094-4a67-80b9-388573c6560c",
+                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "rightValue": "BUG_REPORT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "BUG REPORT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "2102494d-7fbf-4670-8b17-c1f7ed9a8f88",
+                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "rightValue": "ESCALATE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ESCALATE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1480,
+        -60
+      ],
+      "id": "2fc05dbf-3430-4ac0-a5ac-c04e8f460acf",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1700,
+        -220
+      ],
+      "id": "e025c531-b7ac-4bd2-9596-2315e048380c",
+      "name": "RESTART SSH"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1700,
+        -60
+      ],
+      "id": "054b4e73-2db6-4709-ab09-b4fe564ea1ec",
+      "name": "JIRA TICKET"
+    },
+    {
+      "parameters": {
+        "sendTo": "EMAIL_HERE",
+        "subject": "ALERTA CRÍTICO: Intervenção Manual Necessária",
+        "message": "=O Agente de IA detectou um incidente que não pode ser resolvido automaticamente.  DETALHES DO DIAGNÓSTICO: - Ação Recomendada: {{ $json.action }} - Confiança da IA: {{ $json.confidence }}% - Motivo: {{ $json.reasoning }}  Por favor, verifique os logs do sistema imediatamente. --- Este é um alerta automático gerado pelo seu Agente SRE (n8n + Llama 3).",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1700,
+        100
+      ],
+      "id": "d34d3c48-b628-4028-8698-787f7f683394",
+      "name": "Gmail",
+      "webhookId": "GMAIL_WEBHOOK_ID_HERE",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CREDENTIALS_ID_HERE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO incident_logs (server_name, action_taken, reasoning, confidence)\nVALUES (\n  '{{ $json.server_name || \"web-prod-01\" }}',\n  '{{ $json.action }}',\n  '{{ $json.reasoning.replace(/'/g, \"\") }}', \n  {{ $json.confidence || 0 }}\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1300,
+        -60
+      ],
+      "id": "3e2b1d6f-3598-43cd-8af5-f4202dbda8a6",
+      "name": "Postgres1",
+      "credentials": {
+        "postgres": {
+          "id": "CREDENTIALS_ID_HERE",
+          "name": "Postgres account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Postgres1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "RESTART SSH",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "JIRA TICKET",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "317d9836-0a44-4ed8-9146-47c02e825aad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "INSTANCE_ID_HERE"
+  },
+  "id": "jsKdVUAxf1n2D9tI",
+  "tags": []
+}

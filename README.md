@@ -1,4 +1,4 @@
-# 🛡️ OpsGuardian - Agente Autônomo de SRE & Resposta a Incidentes
+# 🛡️ n8n Incident Response - Agente Autônomo de SRE & Resposta a Incidentes
 
 > **Status:** Concluído ✅
 
@@ -7,7 +7,7 @@ Este projeto simula um Agente de SRE (Site Reliability Engineering) automatizado
 ## 🎯 O Problema
 Em ambientes de alta escala, alertas de monitoramento geram ruído excessivo ("alert fatigue"). SREs perdem tempo triando incidentes repetitivos em vez de focar em engenharia.
 
-## 💡 A Solução: OpsGuardian
+## 💡 A Solução: n8n Incident Response
 Um pipeline inteligente que ingere alertas, usa **IA Generativa (LLM)** para analisar a correlação entre métricas e mudanças recentes (Commits), e decide autonomamente entre:
 1.  **Reiniciar serviço** (Self-healing).
 2.  **Abrir Bug Report** (Se a causa for código novo).
@@ -39,18 +39,41 @@ Um pipeline inteligente que ingere alertas, usa **IA Generativa (LLM)** para ana
 ### Passo a passo
 1.  Clone o repositório:
     ```bash
-    git clone [https://github.com/SEU_USUARIO/ops-guardian.git](https://github.com/SEU_USUARIO/ops-guardian.git)
-    cd ops-guardian
+    git clone https://github.com/lzMichelotti/n8n-incident-response.git
+    cd n8n-incident-response
     ```
-2.  Suba a stack (O banco de dados será criado automaticamente):
+2.  Crie o arquivo de variáveis de ambiente `.env`:
+    Crie um arquivo chamado `.env` na raiz do projeto (no mesmo nível de `docker-compose.yml`) com o seguinte conteúdo para as credenciais do PostgreSQL:
+    ```
+    POSTGRES_USER=n8nuser
+    POSTGRES_PASSWORD=n8npassword
+    POSTGRES_DB=incidents
+    ```
+3.  Suba a stack (O banco de dados será criado automaticamente):
     ```bash
     docker compose up -d
     ```
-3.  Acesse o n8n em: `http://localhost:5678`
-4.  Configure seu workflow:
-    * Vá em "Workflows" > "Import from File".
-    * Selecione o arquivo `workflows/main_workflow.json`.
-    * Configure suas credenciais (Groq, Postgres) nos nós indicados.
+4.  Acesse o n8n e importe o workflow:
+    *   Aguarde alguns instantes para os serviços inicializarem.
+    *   Acesse o n8n em: `http://localhost:5678`
+    *   Vá em "Workflows" > "Import from File".
+    *   Selecione o arquivo `workflows/main_workflow.json`.
+5.  Configure suas credenciais no n8n:
+    Após importar o workflow, você precisará configurar as credenciais para o Groq, PostgreSQL e (opcionalmente) Gmail:
+    *   **Groq (Nó "Groq Chat Model"):**
+        *   Obtenha sua chave de API gratuita no site da [Groq](https://groq.com/).
+        *   No nó "Groq Chat Model" do workflow, clique para adicionar uma nova credencial.
+        *   Cole sua chave de API Groq.
+    *   **PostgreSQL (Nós "Postgres" e "Postgres1"):**
+        *   Nos nós "Postgres" e "Postgres1", adicione uma nova credencial.
+        *   Use os seguintes dados (conforme definidos no seu arquivo `.env`):
+            *   **User:** `n8nuser`
+            *   **Password:** `n8npassword`
+            *   **Database:** `incidents`
+            *   **Host:** `postgres-db` (este é o nome do serviço no Docker Compose)
+            *   **Port:** `5432`
+    *   **Gmail (Nó "Gmail" - Opcional):**
+        *   Se você pretende usar a funcionalidade de escalonamento por e-mail, configure as credenciais do Gmail no nó "Gmail" do workflow.
 
 ## 🧠 Aprendizados Chave
 Este projeto consolidou conhecimentos em:

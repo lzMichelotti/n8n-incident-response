@@ -75,6 +75,106 @@ Um pipeline inteligente que ingere alertas, usa **IA Generativa (LLM)** para ana
     *   **Gmail (Nó "Gmail" - Opcional):**
         *   Se você pretende usar a funcionalidade de escalonamento por e-mail, configure as credenciais do Gmail no nó "Gmail" do workflow.
 
+## ⚠️ Solução de Problemas (Troubleshooting)
+
+### Problema: Código Python nos nós é resetado
+
+Pode acontecer de, após importar o workflow, o código dentro dos nós de Python (`Code`, `Code1`, `Code2`) ser revertido para o template padrão do n8n. Isso impede a execução correta do fluxo.
+
+**Solução:** Se isso ocorrer, copie e cole manualmente o código correspondente abaixo em cada nó.
+
+#### 1. Nó `Code` (Normalização de Dados)
+Este é o primeiro nó de código após o Webhook.
+
+```python
+# Node: Code (Simulação/Normalização)
+# Linguagem: Python
+
+# Tenta pegar do body (Webhook POST) ou direto do JSON
+entrada = _input.all()[0].json
+dados = entrada.get('body', entrada)
+
+# Monta o objeto simulado garantindo que os campos existam
+# Isso evita erro de "KeyError" no script seguinte
+output = {
+    "server_name": dados.get("server", "srv-unknown-01"),
+    "description": dados.get("description", "Alerta de Monitoramento"),
+    
+    # Converte para Inteiro para a regra > 90 funcionar
+    "memory_usage": int(dados.get("memory_usage", 0)), 
+    
+    # Passa os outros campos se existirem
+    "commit": dados.get("commit", None),
+    "id": dados.get("id", None)
+}
+
+return [{"json": output}]
+```
+
+#### 2. Nó `Code1` (Geração de Prompt da IA)
+Este nó prepara o prompt que será enviado ao modelo de linguagem.
+
+```python
+import json
+
+# A CORREÇÃO ESTÁ AQUI: Adicionamos .to_py() no final
+# Isso converte o objeto "alienígena" do n8n para um Dicionário Python puro
+dados_do_incidente = _input.all()[0].json.to_py()
+
+# Montamos o texto final
+prompt_final = f"""
+Você é um Engenheiro SRE Sênior.
+Analise os dados técnicos abaixo para encontrar a causa raiz do alerta.
+
+REGRAS DE AÇÃO:
+- Se 'memory_usage' > 90%: Ação é RESTART.
+- Se houver dados em 'commit' (commits recentes): Ação é BUG_REPORT.
+- Se 'id' do banco existir e for recorrente: Ação é ESCALATE.
+
+DADOS TÉCNICOS:
+{json.dumps(dados_do_incidente)}
+
+IMPORTANTE:
+Responda ESTRITAMENTE apenas o JSON abaixo, sem texto antes ou depois:
+{{
+  "reasoning": "Explicação em 1 frase",
+  "action": "RESTART" | "BUG_REPORT" | "ESCALATE",
+  "confidence": 90
+}}
+"""
+
+return [{"json": {"meu_prompt": prompt_final}}]
+```
+
+#### 3. Nó `Code2` (Tratamento da Resposta da IA)
+Este nó trata e limpa a resposta JSON vinda da IA.
+
+```python
+import json
+import re
+
+# Resposta da IA
+texto_da_ia = _input.all()[0].json.output
+
+# Remove blocos de código markdown (```json ... ```) 
+texto_limpo = re.sub(r"```json|```", "", texto_da_ia).strip()
+
+# Tenta fazer o parse. Se falhar, cria um fallback para não parar o fluxo
+try:
+    decisao_limpa = json.loads(texto_limpo)
+except:
+    # Se a IA alucinar e não mandar JSON, forçamos um Bug Report para analisar depois
+    decisao_limpa = {
+        "reasoning": "Falha no parse da resposta da IA. Texto original: " + texto_da_ia,
+        "action": "BUG_REPORT",
+        "confidence": 0
+    }
+# Adiciona o server_name original que veio do input para não perdê-lo
+decisao_limpa['server_name'] = _input.all()[0].json.get('server_name', 'srv-unknown')
+
+return [{"json": decisao_limpa}]
+```
+
 ## 🧠 Aprendizados Chave
 Este projeto consolidou conhecimentos em:
 * Arquitetura orientada a eventos.

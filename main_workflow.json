@@ -10,10 +10,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -380,
-        -60
+        -320,
+        304
       ],
-      "id": "00590133-2a2f-4bb3-8a86-e1ce8c191e26",
+      "id": "b632ea1b-64cd-422f-a2a1-36f4d1ea3653",
       "name": "Webhook",
       "webhookId": "WEBHOOK_ID_HERE"
     },
@@ -26,15 +26,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -60,
-        -360
+        0,
+        0
       ],
-      "id": "c3075118-68dd-4f12-b0dc-ce37cfd0fcc5",
+      "id": "975775c4-3e99-463d-b6d2-bd7181b1c0a0",
       "name": "Postgres",
       "credentials": {
         "postgres": {
-          "id": "CREDENTIALS_ID_HERE",
-          "name": "Postgres account 2"
+          "id": "GaCP1Op5k5WG1XYd",
+          "name": "Postgres account"
         }
       }
     },
@@ -46,25 +46,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -60,
-        -60
+        0,
+        304
       ],
-      "id": "d0e1d304-79ec-4bcc-9120-8c848a232cf3",
+      "id": "29f2cc58-9e01-4e62-b260-d59381261230",
       "name": "HTTP Request"
-    },
-    {
-      "parameters": {
-        "language": "python",
-        "pythonCode": "# Node: Code (Simulação/Normalização)\n# Linguagem: Python\n\n# Tenta pegar do body (Webhook POST) ou direto do JSON\nentrada = _input.all()[0].json\ndados = entrada.get('body', entrada)\n\n# Monta o objeto simulado garantindo que os campos existam\n# Isso evita erro de \"KeyError\" no script seguinte\noutput = {\n    \"server_name\": dados.get(\"server\", \"srv-unknown-01\"),\n    \"description\": dados.get(\"description\", \"Alerta de Monitoramento\"),\n    \n    # Converte para Inteiro para a regra > 90 funcionar\n    \"memory_usage\": int(dados.get(\"memory_usage\", 0)), \n    \n    # Passa os outros campos se existirem\n    \"commit\": dados.get(\"commit\", None),\n    \"id\": dados.get(\"id\", None)\n}\n\nreturn [{\"json\": output}]"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -60,
-        220
-      ],
-      "id": "f03a810d-a30a-47cc-84b1-793c62c6a89b",
-      "name": "Code"
     },
     {
       "parameters": {
@@ -76,10 +62,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.1,
       "position": [
-        340,
-        -60
+        400,
+        304
       ],
-      "id": "1d785bb5-7bd6-4acb-81ce-77abed2b91d1",
+      "id": "cedfb435-8fd5-4b35-8d3f-0b35132850f2",
       "name": "Merge",
       "alwaysOutputData": true
     },
@@ -91,31 +77,17 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        740,
-        220
+        800,
+        592
       ],
-      "id": "8b0ceacc-2612-41b5-bea9-ddf5b85219ec",
+      "id": "3f959627-ae3d-4e3d-ad6f-e44b135c3071",
       "name": "Groq Chat Model",
       "credentials": {
         "groqApi": {
-          "id": "CREDENTIALS_ID_HERE",
+          "id": "xv6oYQegNqdRpik4",
           "name": "Groq account"
         }
       }
-    },
-    {
-      "parameters": {
-        "language": "python",
-        "pythonCode": "import json\n\n# A CORREÇÃO ESTÁ AQUI: Adicionamos .to_py() no final\n# Isso converte o objeto \"alienígena\" do n8n para um Dicionário Python puro\ndados_do_incidente = _input.all()[0].json.to_py()\n\n# Montamos o texto final\nprompt_final = f\"\"\"\nVocê é um Engenheiro SRE Sênior.\nAnalise os dados técnicos abaixo para encontrar a causa raiz do alerta.\n\nREGRAS DE AÇÃO:\n- Se 'memory_usage' > 90%: Ação é RESTART.\n- Se houver dados em 'commit' (commits recentes): Ação é BUG_REPORT.\n- Se 'id' do banco existir e for recorrente: Ação é ESCALATE.\n\nDADOS TÉCNICOS:\n{json.dumps(dados_do_incidente)}\n\nIMPORTANTE:\nResponda ESTRITAMENTE apenas o JSON abaixo, sem texto antes ou depois:\n{{\n  \"reasoning\": \"Explicação em 1 frase\",\n  \"action\": \"RESTART\" | \"BUG_REPORT\" | \"ESCALATE\",\n  \"confidence\": 90\n}}\n\"\"\"\n\nreturn [{\"json\": {\"meu_prompt\": prompt_final}}]"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        540,
-        -60
-      ],
-      "id": "09c1087a-f216-4f77-9d9c-ddc9d3acef91",
-      "name": "Code1"
     },
     {
       "parameters": {
@@ -126,25 +98,11 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.8,
       "position": [
-        760,
-        -60
+        832,
+        304
       ],
-      "id": "ae69c452-d49e-4aa0-a477-d2b05e6e5c0d",
+      "id": "08e26655-3af8-4303-83f2-2d174cd58a51",
       "name": "AI Agent"
-    },
-    {
-      "parameters": {
-        "language": "python",
-        "pythonCode": "import json\nimport re\n\n# Resposta da IA\ntexto_da_ia = _input.all()[0].json.output\n\n# Remove blocos de código markdown (```json ... ```) \ntexto_limpo = re.sub(r\"```json|```\", \"\", texto_da_ia).strip()\n\n# Tenta fazer o parse. Se falhar, cria um fallback para não parar o fluxo\ntry:\n    decisao_limpa = json.loads(texto_limpo)\nexcept:\n    # Se a IA alucinar e não mandar JSON, forçamos um Bug Report para analisar depois\n    decisao_limpa = {\n        \"reasoning\": \"Falha no parse da resposta da IA. Texto original: \" + texto_da_ia,\n        \"action\": \"BUG_REPORT\",\n        \"confidence\": 0\n    }\n# Adiciona o server_name original que veio do input para não perdê-lo\ndecisao_limpa['server_name'] = _input.all()[0].json.get('server_name', 'srv-unknown')\n\nreturn [{\"json\": decisao_limpa}]"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1120,
-        -60
-      ],
-      "id": "005a71e4-455e-4fda-b801-4242010ca55d",
-      "name": "Code2"
     },
     {
       "parameters": {
@@ -160,7 +118,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "leftValue": "={{ $('Code in JavaScript2').item.json.action }}",
                     "rightValue": "RESTART",
                     "operator": {
                       "type": "string",
@@ -185,7 +143,7 @@
                 "conditions": [
                   {
                     "id": "ce88e050-7094-4a67-80b9-388573c6560c",
-                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "leftValue": "={{ $('Code in JavaScript2').item.json.action }}",
                     "rightValue": "BUG_REPORT",
                     "operator": {
                       "type": "string",
@@ -210,7 +168,7 @@
                 "conditions": [
                   {
                     "id": "2102494d-7fbf-4670-8b17-c1f7ed9a8f88",
-                    "leftValue": "={{ $('Code2').item.json.action }}",
+                    "leftValue": "={{ $('Code in JavaScript2').item.json.action }}",
                     "rightValue": "ESCALATE",
                     "operator": {
                       "type": "string",
@@ -231,10 +189,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1480,
-        -60
+        1552,
+        304
       ],
-      "id": "2fc05dbf-3430-4ac0-a5ac-c04e8f460acf",
+      "id": "6b270286-0708-427d-b0a7-8257a8ce5831",
       "name": "Switch"
     },
     {
@@ -244,10 +202,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1700,
-        -220
+        1760,
+        144
       ],
-      "id": "e025c531-b7ac-4bd2-9596-2315e048380c",
+      "id": "984e02c9-7dd4-47db-894b-99018b0a67ae",
       "name": "RESTART SSH"
     },
     {
@@ -257,34 +215,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1700,
-        -60
+        1760,
+        304
       ],
-      "id": "054b4e73-2db6-4709-ab09-b4fe564ea1ec",
+      "id": "778123a5-db85-48ab-8732-b7e495ded1d8",
       "name": "JIRA TICKET"
-    },
-    {
-      "parameters": {
-        "sendTo": "EMAIL_HERE",
-        "subject": "ALERTA CRÍTICO: Intervenção Manual Necessária",
-        "message": "=O Agente de IA detectou um incidente que não pode ser resolvido automaticamente.  DETALHES DO DIAGNÓSTICO: - Ação Recomendada: {{ $json.action }} - Confiança da IA: {{ $json.confidence }}% - Motivo: {{ $json.reasoning }}  Por favor, verifique os logs do sistema imediatamente. --- Este é um alerta automático gerado pelo seu Agente SRE (n8n + Llama 3).",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        1700,
-        100
-      ],
-      "id": "d34d3c48-b628-4028-8698-787f7f683394",
-      "name": "Gmail",
-      "webhookId": "GMAIL_WEBHOOK_ID_HERE",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "CREDENTIALS_ID_HERE",
-          "name": "Gmail account"
-        }
-      }
     },
     {
       "parameters": {
@@ -295,15 +230,77 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1300,
-        -60
+        1360,
+        304
       ],
-      "id": "3e2b1d6f-3598-43cd-8af5-f4202dbda8a6",
+      "id": "c8c43277-6f12-4029-8125-e31514afabe6",
       "name": "Postgres1",
       "credentials": {
         "postgres": {
-          "id": "CREDENTIALS_ID_HERE",
-          "name": "Postgres account 2"
+          "id": "GaCP1Op5k5WG1XYd",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node: Code (Simulação/Normalização) - UPDATED\n// Linguagem: JavaScript\n\n// Obtém todos os itens de entrada\nconst items = $input.all();\nconst entradaItem = items[0]; // Pega o primeiro item de entrada\n\nlet dados;\n\n// Verifica se a entrada é um objeto e se tem uma propriedade 'json'\n// e se dentro de 'json' existe um 'body' (Webhook POST)\nif (entradaItem && typeof entradaItem.json === 'object' && entradaItem.json.body) {\n  dados = entradaItem.json.body;\n} else if (entradaItem && typeof entradaItem.json === 'object') {\n  // Se não tiver 'body', assume que o JSON é a entrada direta\n  dados = entradaItem.json;\n} else {\n  // Fallback caso a estrutura seja inesperada\n  dados = {};\n}\n\n// Monta o objeto simulado garantindo que os campos existam\nconst output = {\n  server_name: dados.server || \"srv-unknown-01\",\n  description: dados.description || \"Alerta de Monitoramento\",\n\n  // Converte para Inteiro para a regra > 90 funcionar\n  memory_usage: parseInt(dados.memory_usage || 0),\n\n  // Passa os outros campos se existirem\n  commit: dados.commit || null,\n  id: dados.id || null\n};\n\nreturn [{ json: output }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        592
+      ],
+      "id": "220552e2-6d09-4bbe-a091-364b307b1bdd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.all()[0].json;\n\n// Separar o que veio do Webhook (Alerta) do que veio do GitHub (Contexto)\n\nconst promptFinal = `\nVocê é um Gerente de SRE Sênior.\n\nANALISE DO INCIDENTE:\n---------------------------------------------------\nTÍTULO: ${inputData.alert_name}\nSEVERIDADE: ${inputData.severity}\nDESCRIÇÃO DO PROBLEMA: ${inputData.description}\n---------------------------------------------------\n\nCONTEXTO DO AMBIENTE (Último Deploy Detectado):\n*Commit Message:* ${inputData.commit?.message || \"Nenhum commit recente detectado\"}\n*Autor:* ${inputData.commit?.author?.name || \"N/A\"}\n\nREGRAS DE DECISÃO:\n1. INFRAESTRUTURA (Ação: RESTART)\n   - Problemas de hardware, memória estourada, disco cheio ou processos travados.\n   - IGNORE o commit se o erro for claramente de recurso de máquina.\n\n2. SOFTWARE (Ação: BUG_REPORT)\n   - Erros de lógica, cálculo errado, layout quebrado ou falhas logo após o deploy.\n   - Use o contexto do commit para confirmar se foi uma mudança recente que quebrou.\n\n3. CRÍTICO/HUMANO (Ação: ESCALATE)\n   - Segurança, Ransomware, Fraude ou Perda Financeira.\n   - Situações onde reiniciar ou abrir ticket é insuficiente.\n\nResponda APENAS o JSON:\n{ \"reasoning\": \"...\", \"action\": \"...\" }\n`;\n\nreturn [{ json: { meu_prompt: promptFinal } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        304
+      ],
+      "id": "7c9ae185-4ef5-4c26-96c2-3a96f93f5669",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node: Code2 (Parse da Resposta da IA)\n// Linguagem: JavaScript\n\n// Resposta da IA\nconst textoDaIa = $input.all()[0].json.output;\n\n// Remove blocos de código markdown (```json ... ```)\nconst textoLimpo = textoDaIa.replace(/```json|```/g, \"\").trim();\n\nlet decisaoLimpa;\n\n// Tenta fazer o parse. Se falhar, cria um fallback para não parar o fluxo\ntry {\n  decisaoLimpa = JSON.parse(textoLimpo);\n} catch (error) {\n  // Se a IA alucinar e não mandar JSON, forçamos um Bug Report para analisar depois\n  decisaoLimpa = {\n    reasoning: \"Falha no parse da resposta da IA. Texto original: \" + textoDaIa,\n    action: \"BUG_REPORT\",\n    confidence: 0\n  };\n}\n\n// Adiciona o server_name original que veio do input para não perdê-lo\ndecisaoLimpa.server_name = $input.all()[0].json.server_name || \"srv-unknown\";\n\nreturn [{ json: decisaoLimpa }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        304
+      ],
+      "id": "c1d0719d-56c2-4e62-aad5-d187a7827c9c",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "sendTo": "lzmichelotti@gmail.com",
+        "subject": "=[n8n Incident Response] 🚨 {{ $('Webhook').item.json.body.severity.toUpperCase() }}: {{ $('Webhook').item.json.body.alert_name }}",
+        "message": "=<div style=\"font-family: Arial; padding: 20px; border: 1px solid #dcdcdc; border-radius: 5px;\">\n  <h2 style=\"color: #D32F2F;\">⚠️ Incidente Crítico Detectado</h2>\n  <p>O sistema <b>n8n Incident Response</b> identificou uma situação que requer intervenção humana imediata.</p>\n  <hr>\n  <ul>\n    <li><b>Servidor (IA):</b> {{ $('Code in JavaScript2').item.json.server_name }}</li>\n    <li><b>Ação Recomendada:</b> {{ $('Code in JavaScript2').item.json.action }}</li>\n    \n    <li><b>Severidade:</b> {{ $('Webhook').item.json.body.severity.toUpperCase() }}</li>\n    <li><b>Análise da IA:</b> {{ $('Code in JavaScript2').item.json.reasoning }}</li>\n  </ul>\n  \n  <div style=\"background-color: #f9f9f9; padding: 15px; border-left: 4px solid #D32F2F;\">\n    <b>Descrição Técnica Original:</b><br>\n    {{ $('Webhook').item.json.body.description }}\n  </div>\n  \n  <br>\n  <p style=\"font-size: 12px; color: #666;\">Gerado automaticamente por <b>n8n Incident Response</b></p>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        496
+      ],
+      "id": "082ae6a0-9a74-4a39-9b8f-105501ce3270",
+      "name": "Send a message",
+      "webhookId": "4f1f7448-7222-4c3f-9797-e29262d7c5a3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "agejH7uEPrWDoUvc",
+          "name": "Gmail account"
         }
       }
     }
@@ -324,7 +321,7 @@
             "index": 0
           },
           {
-            "node": "Code",
+            "node": "Code in JavaScript",
             "type": "main",
             "index": 0
           }
@@ -353,22 +350,11 @@
         ]
       ]
     },
-    "Code": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 2
-          }
-        ]
-      ]
-    },
     "Merge": {
       "main": [
         [
           {
-            "node": "Code1",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -386,33 +372,11 @@
         ]
       ]
     },
-    "Code1": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "AI Agent": {
       "main": [
         [
           {
-            "node": "Code2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code2": {
-      "main": [
-        [
-          {
-            "node": "Postgres1",
+            "node": "Code in JavaScript2",
             "type": "main",
             "index": 0
           }
@@ -437,7 +401,7 @@
         ],
         [
           {
-            "node": "Gmail",
+            "node": "Send a message",
             "type": "main",
             "index": 0
           }
@@ -454,17 +418,51 @@
           }
         ]
       ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Postgres1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "availableInMCP": false
   },
-  "versionId": "317d9836-0a44-4ed8-9146-47c02e825aad",
+  "versionId": "f2f981ce-d39f-4d1d-9737-b89d0f7710aa",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "INSTANCE_ID_HERE"
+    "instanceId": "8fbdeea85ad3889271c1b9b02b219535ebee57e6e000cbdaf2e7e86241a8b988"
   },
-  "id": "jsKdVUAxf1n2D9tI",
+  "id": "B362T5EN1q26unHBstnB9",
   "tags": []
 }
